@@ -1421,7 +1421,8 @@ impl<'v, 'tcx> Encoder<'v, 'tcx> {
         proc_def_id = *self.get_specification_def_id(&proc_def_id);
         // The stub function may come from another module for which we can have
         // only optimized_mir.
-        let body = self.env.tcx().optimized_mir(proc_def_id);
+        let body = self.env.mir(proc_def_id.expect_local());
+        //let body = self.env.tcx().optimized_mir(proc_def_id); // CMFIXME
         let stub_encoder = StubFunctionEncoder::new(self, proc_def_id, &body);
 
         // If we haven't seen this particular stub before, generate and insert it.
