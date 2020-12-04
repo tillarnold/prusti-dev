@@ -789,7 +789,9 @@ impl<'p, 'v: 'p, 'tcx: 'v> BackwardMirInterpreter<'tcx>
 
                         // Encoding of a non-terminating function call
                         let error_ctxt = match full_func_proc_name {
-                            "std::rt::begin_panic" | "std::panicking::begin_panic" => {
+                            "std::rt::begin_panic"
+                            | "core::panicking::panic"
+                            | "core::panicking::panic_fmt" => {
                                 // This is called when a Rust assertion fails
                                 // args[0]: message
                                 // args[1]: position of failing assertions
@@ -928,9 +930,13 @@ impl<'p, 'v: 'p, 'tcx: 'v> BackwardMirInterpreter<'tcx>
                             }
                             None => {
                                 // Substitute a place of a value with an expression
-                                let rhs_expr = self.mir_encoder.encode_operand_expr(operand)
-                                    .with_span(span)?;
-                                state.substitute_value(&opt_lhs_value_place.unwrap(), rhs_expr);
+                                if let Some(lhs_value_place) = &opt_lhs_value_place {
+                                    // opt_lhs_value_place can be none in trigger generation code.
+                                    let rhs_expr = self.mir_encoder
+                                        .encode_operand_expr(operand)
+                                        .with_span(span)?;
+                                    state.substitute_value(lhs_value_place, rhs_expr);
+                                }
                             }
                         }
                     }

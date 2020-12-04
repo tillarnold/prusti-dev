@@ -11,7 +11,6 @@ use prusti_common::vir::{PermAmount, EnumVariantIndex};
 use log::warn;
 use crate::encoder::errors::{PositionlessEncodingError, PositionlessEncodingResult};
 use std::borrow::Borrow;
-use crate::encoder::type_encoder::{compute_discriminant_values, convert_discriminant_value};
 
 
 const SNAPSHOT_DOMAIN_PREFIX: &str = "Snap$";
@@ -900,11 +899,7 @@ impl<'s, 'p: 's, 'v, 'r: 'v, 'a: 'r, 'tcx: 'a> SnapshotAdtEncoder<'s, 'p, 'v, 't
                 tcx,
                 rustc_target::abi::VariantIdx::from_usize(index)
             ).val;
-            let discriminant = convert_discriminant_value(
-                variant_index,
-                self.adt_def,
-                tcx
-            );
+            let discriminant = size.sign_extend(variant_index) as i128;
 
             Ok(vir::Expr::ite(
                 vir::Expr::eq_cmp(

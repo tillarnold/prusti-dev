@@ -29,7 +29,7 @@ use prusti_common::{
         borrows::Borrow,
         collect_assigned_vars,
         fixes::fix_ghost_vars,
-        optimizations::methods::{remove_empty_if, remove_trivial_assertions, remove_unused_vars},
+        optimizations::methods::{clean_cfg, remove_empty_if, remove_trivial_assertions, remove_unused_vars},
         CfgBlockIndex, Expr, ExprIterator, FoldingBehaviour, Successor, Type,
     },
 };
@@ -367,7 +367,6 @@ impl<'p, 'v: 'p, 'tcx: 'v> ProcedureEncoder<'p, 'v, 'tcx> {
         // Initialize CFG blocks
         let start_cfg_block = self.cfg_method.add_block(
             "start",
-            vec![],
             vec![
                 vir::Stmt::comment("========== start =========="),
                 // vir::Stmt::comment(format!("Name: {:?}", self.procedure.get_name())),
@@ -378,7 +377,6 @@ impl<'p, 'v: 'p, 'tcx: 'v> ProcedureEncoder<'p, 'v, 'tcx> {
 
         let return_cfg_block = self.cfg_method.add_block(
             "return",
-            vec![],
             vec![
                 vir::Stmt::comment(format!("========== return ==========")),
                 vir::Stmt::comment("Target of any 'return' statement."),
@@ -453,8 +451,7 @@ impl<'p, 'v: 'p, 'tcx: 'v> ProcedureEncoder<'p, 'v, 'tcx> {
 
         self.check_vir()?;
         let method_name = self.cfg_method.name();
-        let source_path = self.encoder.env().source_path();
-        let source_filename = source_path.file_name().unwrap().to_str().unwrap();
+        let source_filename = self.encoder.env().source_file_name();
 
         self.encoder
             .log_vir_program_before_foldunfold(self.cfg_method.to_string());
@@ -501,8 +498,8 @@ impl<'p, 'v: 'p, 'tcx: 'v> ProcedureEncoder<'p, 'v, 'tcx> {
 
         // Do some optimizations
         let final_method = if config::simplify_encoding() {
-            optimizer::rewrite(remove_trivial_assertions(remove_unused_vars(
-                remove_empty_if(fixed_method),
+            optimizer::rewrite(self.encoder.borrow(), clean_cfg(remove_trivial_assertions(remove_unused_vars(
+                remove_empty_if(fixed_method)),
             )))
         } else {
             fixed_method
@@ -705,7 +702,6 @@ impl<'p, 'v: 'p, 'tcx: 'v> ProcedureEncoder<'p, 'v, 'tcx> {
         // Build the "start" CFG block (*start* - G - B1 - invariant - B2 - G - B1 - end)
         let start_block = self.cfg_method.add_block(
             &format!("{}_start", loop_label_prefix),
-            vec![],
             vec![vir::Stmt::comment(format!(
                 "========== {}_start ==========",
                 loop_label_prefix
@@ -736,7 +732,6 @@ impl<'p, 'v: 'p, 'tcx: 'v> ProcedureEncoder<'p, 'v, 'tcx> {
         // (2) havocs the invariant and the local variables.
         let inv_pre_block = self.cfg_method.add_block(
             &format!("{}_inv_pre", loop_label_prefix),
-            vec![],
             vec![vir::Stmt::comment(format!(
                 "========== {}_inv_pre ==========",
                 loop_label_prefix
@@ -744,7 +739,6 @@ impl<'p, 'v: 'p, 'tcx: 'v> ProcedureEncoder<'p, 'v, 'tcx> {
         );
         let inv_post_block = self.cfg_method.add_block(
             &format!("{}_inv_post", loop_label_prefix),
-            vec![],
             vec![vir::Stmt::comment(format!(
                 "========== {}_inv_post ==========",
                 loop_label_prefix
@@ -797,7 +791,6 @@ impl<'p, 'v: 'p, 'tcx: 'v> ProcedureEncoder<'p, 'v, 'tcx> {
         // (2) kills the program path with an `assume false`
         let end_body_block = self.cfg_method.add_block(
             &format!("{}_end_body", loop_label_prefix),
-            vec![],
             vec![vir::Stmt::comment(format!(
                 "========== {}_end_body ==========",
                 loop_label_prefix
@@ -920,7 +913,6 @@ impl<'p, 'v: 'p, 'tcx: 'v> ProcedureEncoder<'p, 'v, 'tcx> {
 
         let curr_block = self.cfg_method.add_block(
             &format!("{}{:?}", label_prefix, bbi),
-            vec![],
             vec![vir::Stmt::comment(format!(
                 "========== {}{:?} ==========",
                 label_prefix, bbi
@@ -1947,7 +1939,9 @@ impl<'p, 'v: 'p, 'tcx: 'v> ProcedureEncoder<'p, 'v, 'tcx> {
                     };
 
                     match full_func_proc_name {
-                        "std::rt::begin_panic" | "std::panicking::begin_panic" => {
+                        "std::rt::begin_panic"
+                        | "core::panicking::panic"
+                        | "core::panicking::panic_fmt" => {
                             // This is called when a Rust assertion fails
                             // args[0]: message
                             // args[1]: position of failing assertions
@@ -2256,7 +2250,6 @@ impl<'p, 'v: 'p, 'tcx: 'v> ProcedureEncoder<'p, 'v, 'tcx> {
             let edge_label = self.cfg_method.get_fresh_label_name();
             let edge_block = self.cfg_method.add_block(
                 &edge_label,
-                vec![],
                 vec![
                     vir::Stmt::comment(format!("========== {} ==========", edge_label)),
                     vir::Stmt::comment(format!("MIR edge {:?} --> {:?}", source, destination)),
@@ -3587,32 +3580,35 @@ impl<'p, 'v: 'p, 'tcx: 'v> ProcedureEncoder<'p, 'v, 'tcx> {
         // This clone is only due to borrow checker restrictions
         let contract = self.procedure_contract().clone();
 
-        self.cfg_method
-            .add_stmt(return_cfg_block, vir::Stmt::comment("Exhale postcondition"));
+        self.cfg_method.add_stmt(return_cfg_block, vir::Stmt::comment("Exhale postcondition"));
 
         let postcondition_label = self.cfg_method.get_fresh_label_name();
-        self.cfg_method.add_stmt(
-            return_cfg_block,
-            vir::Stmt::Label(postcondition_label.clone()),
-        );
+        self.cfg_method.add_stmt(return_cfg_block, vir::Stmt::Label(postcondition_label.clone()));
+
+        let (
+            type_spec,
+            return_type_spec,
+            invs_spec,
+            func_spec,
+            magic_wands,
+            _,
+            strengthening_spec
+        ) = self.encode_postcondition_expr(
+            None,
+            &contract,
+            postcondition_strengthening,
+            PRECONDITION_LABEL,
+            &postcondition_label,
+            None,
+            false,
+            None,
+            true,
+        )?;
 
         let type_inv_pos = self.encoder.error_manager().register(
             self.mir.span,
             ErrorCtxt::AssertMethodPostconditionTypeInvariants,
         );
-
-        let (type_spec, return_type_spec, invs_spec, func_spec, magic_wands, _, strengthening_spec) =
-            self.encode_postcondition_expr(
-                None,
-                &contract,
-                postcondition_strengthening,
-                PRECONDITION_LABEL,
-                &postcondition_label,
-                None,
-                false,
-                None,
-                true,
-            )?;
 
         // Find which arguments are blocked by the returned reference.
         let blocked_args: Vec<usize> = {
@@ -3704,8 +3700,10 @@ impl<'p, 'v: 'p, 'tcx: 'v> ProcedureEncoder<'p, 'v, 'tcx> {
         }
 
         // Fold the result.
-        self.cfg_method
-            .add_stmt(return_cfg_block, vir::Stmt::comment("Fold the result"));
+        self.cfg_method.add_stmt(
+            return_cfg_block,
+            vir::Stmt::comment("Fold the result"),
+        );
         let ty = self.locals.get_type(contract.returned_value);
         let encoded_return: vir::Expr = self.encode_prusti_local(contract.returned_value).into();
         let encoded_return_expr = if self.mir_encoder.is_reference(ty) {
@@ -3728,6 +3726,10 @@ impl<'p, 'v: 'p, 'tcx: 'v> ProcedureEncoder<'p, 'v, 'tcx> {
             .add_stmt(return_cfg_block, obtain_return_stmt);
 
         // Assert possible strengthening
+        self.cfg_method.add_stmt(
+            return_cfg_block,
+            vir::Stmt::comment("Assert possible strengthening"),
+        );
         if let Some(strengthening_spec) = strengthening_spec {
             let patched_strengthening_spec =
                 self.replace_old_places_with_ghost_vars(None, strengthening_spec);
@@ -3737,7 +3739,12 @@ impl<'p, 'v: 'p, 'tcx: 'v> ProcedureEncoder<'p, 'v, 'tcx> {
                 vir::Stmt::Assert(patched_strengthening_spec, FoldingBehaviour::Expr, pos),
             );
         }
+
         // Assert functional specification of postcondition
+        self.cfg_method.add_stmt(
+            return_cfg_block,
+            vir::Stmt::comment("Assert functional specification of postcondition"),
+        );
         let func_pos = self
             .encoder
             .error_manager()
@@ -3749,6 +3756,10 @@ impl<'p, 'v: 'p, 'tcx: 'v> ProcedureEncoder<'p, 'v, 'tcx> {
         );
 
         // Assert type invariants
+        self.cfg_method.add_stmt(
+            return_cfg_block,
+            vir::Stmt::comment("Assert type invariants"),
+        );
         let patched_invs_spec = self.replace_old_places_with_ghost_vars(None, invs_spec);
         self.cfg_method.add_stmt(
             return_cfg_block,
@@ -3756,15 +3767,24 @@ impl<'p, 'v: 'p, 'tcx: 'v> ProcedureEncoder<'p, 'v, 'tcx> {
         );
 
         // Exhale permissions of postcondition
+        self.cfg_method.add_stmt(
+            return_cfg_block,
+            vir::Stmt::comment("Exhale permissions of postcondition (1/3)"),
+        );
         let perm_pos = self
             .encoder
             .error_manager()
             .register(self.mir.span, ErrorCtxt::ExhaleMethodPostcondition);
         let patched_type_spec = self.replace_old_places_with_ghost_vars(None, type_spec);
-        assert!(!perm_pos.is_default());
+        debug_assert!(!perm_pos.is_default());
         self.cfg_method.add_stmt(
             return_cfg_block,
             vir::Stmt::Exhale(patched_type_spec, perm_pos),
+        );
+
+        self.cfg_method.add_stmt(
+            return_cfg_block,
+            vir::Stmt::comment("Exhale permissions of postcondition (2/3)"),
         );
         if let Some(access) = return_type_spec {
             self.cfg_method.add_stmt(
@@ -3772,6 +3792,11 @@ impl<'p, 'v: 'p, 'tcx: 'v> ProcedureEncoder<'p, 'v, 'tcx> {
                 vir::Stmt::Exhale(access, perm_pos),
             );
         }
+
+        self.cfg_method.add_stmt(
+            return_cfg_block,
+            vir::Stmt::comment("Exhale permissions of postcondition (3/3)"),
+        );
         for magic_wand in magic_wands {
             self.cfg_method.add_stmt(
                 return_cfg_block,
