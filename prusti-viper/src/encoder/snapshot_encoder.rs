@@ -10,8 +10,8 @@ use rustc_middle::ty;
 use prusti_common::vir::{PermAmount, EnumVariantIndex};
 use log::warn;
 use crate::encoder::errors::{PositionlessEncodingError, PositionlessEncodingResult};
-use crate::encoder::type_encoder::compute_discriminant_values;
 use std::borrow::Borrow;
+use crate::encoder::type_encoder::{compute_discriminant_values, convert_discriminant_value};
 
 
 const SNAPSHOT_DOMAIN_PREFIX: &str = "Snap$";
@@ -758,8 +758,6 @@ impl<'s, 'p: 's, 'v, 'r: 'v, 'a: 'r, 'tcx: 'a> SnapshotAdtEncoder<'s, 'p, 'v, 't
             vec![vir::Expr::local(var.clone())],
         );
 
-        // TODO this is potentially dangerous as the variant range is not the same as the
-        // discriminant range
         let variant_range = self.adt_def.variant_range();
         let start = vir::Expr::int(variant_range.start.as_usize() as i64);
         let end = vir::Expr::int(variant_range.end.as_usize() as i64);
@@ -859,6 +857,7 @@ impl<'s, 'p: 's, 'v, 'r: 'v, 'a: 'r, 'tcx: 'a> SnapshotAdtEncoder<'s, 'p, 'v, 't
                 self.snapshot_encoder.encode_arg_local(SNAPSHOT_ARG),
                 self.snapshot_encoder.encoder.encode_discriminant_field(),
             );
+
             self.fold_snap_func_conditional(
                 snap_domain,
                 variant_arg,
@@ -884,10 +883,23 @@ impl<'s, 'p: 's, 'v, 'r: 'v, 'a: 'r, 'tcx: 'a> SnapshotAdtEncoder<'s, 'p, 'v, 't
         if index >= self.adt_def.variants.len() - 1 {
             self.encode_snap_variant(snap_domain, index)
         } else {
+            let tcx = self.encoder.env().tcx();
+            let variant_index =  adt_def.discriminant_for_variant(
+                tcx,
+                rustc_target::abi::VariantIdx::from_usize(index)
+            );
+            let discriminant = convert_discriminant_value(
+                variant_index,
+                self.adt_def,
+                tcx
+            );
+
             Ok(vir::Expr::ite(
                 vir::Expr::eq_cmp(
                     variant_arg.clone(),
-                    vir::Expr::int(index as i64),
+                    vir::Expr::int(
+                        discriminant as i64
+                    ),
                 ),
                 self.encode_snap_variant(snap_domain, index)?,
                 self.fold_snap_func_conditional(

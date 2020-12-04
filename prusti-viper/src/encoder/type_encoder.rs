@@ -756,28 +756,34 @@ impl<'p, 'v, 'r: 'v, 'tcx: 'v> TypeEncoder<'p, 'v, 'tcx> {
 
 /// Compute the values that a discriminant can take.
 pub fn compute_discriminant_values(adt_def: &ty::AdtDef, tcx: ty::TyCtxt) -> Vec<i128> {
-    let mut discr_values: Vec<i128> = vec![];
-    // Handle *signed* discriminats
+    let mut discriminant_values: Vec<i128> = vec![];
+    for (variant_index, _) in adt_def.variants.iter().enumerate() {
+        let value = adt_def.discriminant_for_variant(tcx, abi::VariantIdx::from_usize(variant_index)).val;
+        discriminant_values.push(
+            convert_discriminant_value(value, adt_def, tcx)
+        );
+    }
+    discriminant_values
+}
+
+pub fn convert_discriminant_value(
+    discriminant: u128,
+    adt_def: &ty::AdtDef,
+    tcx: ty::TyCtxt,
+) -> i128
+{
+    let casted_discriminant = discriminant as i128;
     if let SignedInt(ity) = adt_def.repr.discr_type() {
         let bit_size = abi::Integer::from_attr(&tcx, SignedInt(ity))
             .size()
             .bits();
         let shift = 128 - bit_size;
-        for (variant_index, _) in adt_def.variants.iter().enumerate() {
-            let unsigned_discr = adt_def.discriminant_for_variant(tcx, abi::VariantIdx::from_usize(variant_index)).val;
-            let casted_discr = unsigned_discr as i128;
-            // sign extend the raw representation to be an i128
-            let signed_discr = (casted_discr << shift) >> shift;
-            discr_values.push(signed_discr);
-        }
+        (casted_discriminant << shift) >> shift
     } else {
-        for (variant_index, _) in adt_def.variants.iter().enumerate() {
-            let value = adt_def.discriminant_for_variant(tcx, abi::VariantIdx::from_usize(variant_index)).val;
-            discr_values.push(value as i128);
-        }
+        casted_discriminant
     }
-    discr_values
 }
+
 
 /// Encode a disjunction that lists all possible discrimintant values.
 pub fn compute_discriminant_bounds(
