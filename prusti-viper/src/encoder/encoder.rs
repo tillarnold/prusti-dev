@@ -264,7 +264,7 @@ impl<'v, 'tcx> Encoder<'v, 'tcx> {
             .borrow()
             .values()
             .into_iter()
-            .filter_map(|s| s.get_domain())
+            .filter_map(|s| s.domain())
             .collect();
         if !mirrors.is_empty() {
             domains.push(vir::Domain {
@@ -311,7 +311,7 @@ impl<'v, 'tcx> Encoder<'v, 'tcx> {
             self.memory_eq_encoder.borrow().get_encoded_functions()
         );
         for snap in self.snapshots.borrow().values() {
-            for function in snap.get_functions() {
+            for function in snap.functions() {
                 functions.push(function);
             }
         }
@@ -1257,7 +1257,7 @@ impl<'v, 'tcx> Encoder<'v, 'tcx> {
                 vir::Type::TypedRef(name) => {
                     mirror_args.push(
                         self.encode_snapshot_use(name.to_string())?
-                            .get_snap_call(arg),
+                            .snap_call(arg),
                     );
                 }
                 _ => mirror_args.push(arg),
@@ -1397,9 +1397,9 @@ impl<'v, 'tcx> Encoder<'v, 'tcx> {
             let snapshot = snapshot_res.unwrap();
             (
                 if is_equality {
-                    snapshot.get_equals_func_name()
+                    snapshot.equals_func_name()
                 } else {
-                    snapshot.get_not_equals_func_name()
+                    snapshot.not_equals_func_name()
                 },
                 vir::Type::Bool
             )
