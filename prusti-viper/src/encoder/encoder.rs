@@ -55,7 +55,7 @@ use crate::encoder::specs_closures_collector::SpecsClosuresCollector;
 use crate::encoder::memory_eq_encoder::MemoryEqEncoder;
 use rustc_span::MultiSpan;
 
-use super::{snapshot_encoder::SnapshotAdtEncoder, snapshot};
+use super::snapshot;
 
 /// A reference to a procedure specification.
 ///
