@@ -724,9 +724,11 @@ impl<'s, 'p: 's, 'v, 'r: 'v, 'a: 'r, 'tcx: 'a> SnapshotAdtEncoder<'s, 'p, 'v, 't
         }
 
         if prusti_common::config::enable_purification_optimization() {
+            let domain_name = self.snapshot_encoder.encode_domain_name();
             let valid_function = self.encode_valid_function();
             let valid_axiom = self.encode_valid_axiom()?;
 
+            functions.push(snapshot::encode_unfold_witness(domain_name));
             functions.push(valid_function);
             axioms.push(valid_axiom);
 
@@ -763,7 +765,7 @@ impl<'s, 'p: 's, 'v, 'r: 'v, 'a: 'r, 'tcx: 'a> SnapshotAdtEncoder<'s, 'p, 'v, 't
 
 
             let field_func = snapshot::encode_field_domain_func(field_type.clone(), field_name, domain_name.clone());
-            let field_func_app = vir::Expr::domain_func_app(field_func, vec![vir::Expr::local(self_var.clone())]); //TODO args
+            let field_func_app = vir::Expr::domain_func_app(field_func, vec![vir::Expr::local(self_var.clone())]); 
 
             let valid_func = snapshot::valid_func_for_type(&field_type);
             vir::Expr::domain_func_app(valid_func, vec![field_func_app])
