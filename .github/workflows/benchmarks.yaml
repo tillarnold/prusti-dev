@@ -32,7 +32,15 @@ jobs:
         run: python x.py setup
       - name: Build with cargo
         run: python x.py build --release --all --verbose
-      - name: Run benchmark
-        run: python x.py run-benchmarks
-      - name: Print Result
-        run: cat benchmark-output/*
+      - name: Run benchmark with opt
+        run: python x.py run-benchmarks opt
+        env:
+          PRUSTI_ENABLE_PURIFICATION_OPTIMIZATION: true
+      - name: Print Result with opt
+        run: cat benchmark-output/benchmark-opt*
+      - name: Run benchmark without opt
+        run: python x.py run-benchmarks noopt
+        env:
+          PRUSTI_ENABLE_PURIFICATION_OPTIMIZATION: false
+      - name: Print Result without opt
+        run: cat benchmark-output/benchmark-noopt*
