@@ -1,0 +1,20 @@
+error: the `#[pure]` attribute does not take parameters
+ --> $DIR/no-attr-params.rs:8:8
+  |
+8 | #[pure(dont write things here)]
+  |        ^^^^^^^^^^^^^^^^^^^^^^
+
+error: the `#[trusted]` attribute does not take parameters
+  --> $DIR/no-attr-params.rs:13:11
+   |
+13 | #[trusted(dont write things here)]
+   |           ^^^^^^^^^^^^^^^^^^^^^^
+
+error: the `#[predicate]` attribute does not take parameters
+  --> $DIR/no-attr-params.rs:16:13
+   |
+16 | #[predicate(dont put anything here)]
+   |             ^^^^^^^^^^^^^^^^^^^^^^
+
+error: aborting due to 3 previous errors
+

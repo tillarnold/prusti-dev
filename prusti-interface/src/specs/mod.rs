@@ -17,6 +17,7 @@ use log::debug;
 
 pub mod external;
 pub mod typed;
+pub mod checker;
 
 use typed::StructuralToTyped;
 use typed::SpecIdRef;
@@ -128,6 +129,7 @@ impl<'tcx> SpecCollector<'tcx> {
             let mut pres = Vec::new();
             let mut posts = Vec::new();
             let mut pledges = Vec::new();
+            let mut predicate_body = None;
             for spec_id_ref in &refs.spec_id_refs {
                 match spec_id_ref {
                     SpecIdRef::Precondition(spec_id) => {
@@ -143,6 +145,9 @@ impl<'tcx> SpecCollector<'tcx> {
                             rhs: self.typed_specs.get(&rhs).unwrap().clone(),
                         })
                     }
+                    SpecIdRef::Predicate(spec_id) => {
+                        predicate_body = Some(self.typed_specs.get(&spec_id).unwrap().clone());
+                    }
                 }
             }
             def_spec.specs.insert(
@@ -151,6 +156,7 @@ impl<'tcx> SpecCollector<'tcx> {
                     pres,
                     posts,
                     pledges,
+                    predicate_body,
                     pure: refs.pure,
                     trusted: refs.trusted,
                 })
@@ -208,6 +214,11 @@ fn get_procedure_spec_ids(def_id: DefId, attrs: &[ast::Attribute]) -> Option<Pro
             }
         )
     );
+    spec_id_refs.extend(
+        read_prusti_attr("pred_spec_id_ref", attrs).map(
+            |raw_spec_id| SpecIdRef::Predicate(parse_spec_id(raw_spec_id))
+        )
+    );
     debug!("Function {:?} has specification ids {:?}", def_id, spec_id_refs);
 
     let pure = has_prusti_attr(attrs, "pure");
@@ -252,7 +263,7 @@ impl<'tcx> intravisit::Visitor<'tcx> for SpecCollector<'tcx> {
     ) {
         intravisit::walk_trait_item(self, ti);
 
-        let id = ti.hir_id;
+        let id = ti.hir_id();
         let local_id = self.tcx.hir().local_def_id(id);
         let def_id = local_id.to_def_id();
         let attrs = ti.attrs;
@@ -321,6 +332,8 @@ impl<'tcx> intravisit::Visitor<'tcx> for SpecCollector<'tcx> {
                 } else if fn_name.starts_with("prusti_post_item_")
                     || fn_name.starts_with("prusti_post_closure_") {
                     SpecType::Postcondition
+                } else if fn_name.starts_with("prusti_pred_item_") {
+                    SpecType::Predicate
                 } else {
                     unreachable!()
                 }

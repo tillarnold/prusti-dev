@@ -6,11 +6,10 @@
 
 use rustc_hir::Mutability;
 use rustc_middle::ty::{
-    AdtDef, FieldDef, ParamTy, ProjectionTy, Region, Slice, Ty, TyCtxt, TypeFlags, TyKind,
-    VariantDef, subst::SubstsRef
+    AdtDef, FieldDef, ParamTy, ProjectionTy, Region, Slice, Ty, TyCtxt,
+    TypeFlags, TyKind, IntTy, UintTy, VariantDef, subst::SubstsRef
 };
 use rustc_hir::def_id::DefId;
-use rustc_ast::ast::{IntTy, UintTy};
 use log::trace;
 
 pub trait TypeVisitor<'tcx>: Sized {
@@ -269,7 +268,10 @@ pub fn walk_closure<'tcx, E, V: TypeVisitor<'tcx, Error = E>>(
 ) -> Result<(), E> {
     let cl_substs = substs.as_closure();
     // TODO: when are there bound typevars? can type visitor deal with generics?
-    let fn_sig = cl_substs.sig().no_bound_vars().unwrap();
+    let fn_sig =
+        cl_substs.sig()
+                 .no_bound_vars()
+                 .expect(&format!("bound variables are not supported at {:?}", def_id));
     for ty in fn_sig.inputs() {
         visitor.visit_ty(ty)?;
     }

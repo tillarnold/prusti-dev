@@ -32,7 +32,7 @@ use prusti_interface::utils::read_prusti_attr;
 /// Encode an assertion coming from a specification to a `vir::Expr`.
 ///
 /// In this documentation, we distinguish the encoding of a _value_ of a Rust expression from
-/// the encoding of its _memory location_. For example:
+/// the encoding of its _memory location_. For example, when encoding non-pure code:
 /// * given an argument `x: u32` the Viper encoding will use `x: Ref` to encode the memory
 ///   location and `x.val_int: Int` to encode the value;
 /// * given an argument `y: &u32` the Viper encoding will use `y: Ref` to encode the memory
@@ -49,7 +49,7 @@ use prusti_interface::utils::read_prusti_attr;
 /// * `targets_are_values`: if `true`, the elements of `target_args` and `target_return` encode
 ///   _values_ and not _memory locations_. This is typically used to encode pure functions.
 /// * `assertion_location`: the basic block at which the assertion should be encoded. This should
-///   be `None` iff the assertion is a loop invariant.
+///   be `Some(..)` iff the assertion is a loop invariant.
 pub fn encode_spec_assertion<'v, 'tcx: 'v>(
     encoder: &Encoder<'v, 'tcx>,
     assertion: &typed::Assertion<'tcx>,
@@ -328,7 +328,7 @@ impl<'p, 'v: 'p, 'tcx: 'v> SpecEncoder<'p, 'v, 'tcx> {
                                          &format!("{}_{}", vars.spec_id, vars.post_id)))
                                 .chain(std::iter::once(
                                     self.encode_forall_arg(
-                                        result_var, tcx.mk_ty(ty::TyKind::Int(rustc_ast::ast::IntTy::I32)),
+                                        result_var, tcx.mk_ty(ty::TyKind::Int(ty::IntTy::I32)),
                                         &format!("{}_{}", vars.spec_id, vars.post_id))))
                                 .collect();
 
@@ -573,7 +573,7 @@ impl<'p, 'v: 'p, 'tcx: 'v> SpecEncoder<'p, 'v, 'tcx> {
         debug!("encode_expression {:?}", assertion_expr);
 
         let mut curr_def_id = assertion_expr.expr.to_def_id();
-        let mut curr_expr = self.encoder.encode_pure_function_body(curr_def_id)?;
+        let mut curr_expr = self.encoder.encode_pure_expression(curr_def_id)?;
 
         loop {
             let done = self.encoder.get_single_closure_instantiation(curr_def_id).is_none();

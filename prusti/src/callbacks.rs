@@ -23,8 +23,8 @@ impl rustc_driver::Callbacks for PrustiCompilerCalls {
                 compiler.session(),
                 compiler.input(),
                 krate,
-                rustc_session::config::PpMode::PpmSource(
-                    rustc_session::config::PpSourceMode::PpmNormal,
+                rustc_session::config::PpMode::Source(
+                    rustc_session::config::PpSourceMode::Normal,
                 ),
                 None,
             );
@@ -40,10 +40,15 @@ impl rustc_driver::Callbacks for PrustiCompilerCalls {
         queries.global_ctxt().unwrap().peek_mut().enter(|tcx| {
             let hir = tcx.hir();
             let krate = hir.krate();
-            let mut visitor = specs::SpecCollector::new(tcx);
-            intravisit::walk_crate(&mut visitor, &krate);
             let env = Environment::new(tcx);
-            let def_spec = visitor.build_def_specs(&env);
+            let mut spec_checker = specs::checker::SpecChecker::new();
+            spec_checker.check_predicate_usages(tcx, krate);
+            spec_checker.report_errors(&env);
+            compiler.session().abort_if_errors();
+
+            let mut spec_collector = specs::SpecCollector::new(tcx);
+            intravisit::walk_crate(&mut spec_collector, &krate);
+            let def_spec = spec_collector.build_def_specs(&env);
             if config::print_typeckd_specs() {
                 let mut values: Vec<_> = def_spec
                     .specs
