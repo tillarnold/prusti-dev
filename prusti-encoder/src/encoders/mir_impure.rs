@@ -75,6 +75,7 @@ impl TaskEncoder for MirImpureEncoder {
         Self::EncodingError,
         Option<Self::OutputFullDependency<'vir>>,
     )> {
+        log::debug!("Start do_encode_full for {task_key:?}");
         use mir::visit::Visitor;
         vir::with_vcx(|vcx| {
             let def_id = task_key;
@@ -84,6 +85,7 @@ impl TaskEncoder for MirImpureEncoder {
             });
 
             let local_def_id = def_id.expect_local();
+            log::debug!("Calling retrieve_promoted_mir_body from do_encode_full for {task_key:?}");
             let body = unsafe {
                 prusti_interface::environment::mir_storage::retrieve_promoted_mir_body(vcx.tcx, local_def_id)
             };

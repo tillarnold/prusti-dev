@@ -9,6 +9,8 @@ extern crate rustc_type_ir;
 
 mod encoders;
 
+use log::debug;
+use prusti_interface::specs::is_spec_fn;
 use prusti_rustc_interface::{
     middle::ty,
     hir,
@@ -125,9 +127,13 @@ pub fn test_entrypoint<'tcx>(
     // TODO: this should be a "crate" encoder, which will deps.require all the methods in the crate
 
     for def_id in tcx.hir_crate_items(()).definitions() {
-        //println!("item: {def_id:?}");
+        debug!("test_entrypoint item: {def_id:?}");
         let kind = tcx.def_kind(def_id);
-        //println!("  kind: {:?}", kind);
+        debug!("  ypoint kind: {:?}", kind);
+
+        let is_spec_only = is_spec_fn(tcx, def_id.to_def_id());
+        debug!("  test_entrypoint is_spec_only: {is_spec_only:?}");
+
         /*if !format!("{def_id:?}").contains("foo") {
             continue;
         }*/
@@ -152,6 +158,7 @@ pub fn test_entrypoint<'tcx>(
     }
     //println!("all items in crate: {:?}", tcx.hir_crate_items(()).definitions().collect::<Vec<_>>());
 
+    debug!("generating viper code");
     fn header(code: &mut String, title: &str) {
         code.push_str("// -----------------------------\n");
         code.push_str(&format!("// {}\n", title));
@@ -159,16 +166,32 @@ pub fn test_entrypoint<'tcx>(
     }
     let mut viper_code = String::new();
 
+    debug!("generating viper code: methods");
     header(&mut viper_code, "methods");
-    for output in crate::encoders::MirImpureEncoder::all_outputs() {
+    let a = crate::encoders::MirImpureEncoder::all_outputs();
+    debug!("generating viper code: methods: after a");
+
+    debug!("generating viper code: methods: a = {a:?}");
+
+
+    debug!("generating viper code: methods: after a");
+    debug!("generating viper code: methods: after a");
+    debug!("generating viper code: methods: after a");
+    debug!("generating viper code: methods: after a");
+
+
+    for output in  a {
+        debug!("generating viper code: methods: {output:?}");
         viper_code.push_str(&format!("{:?}\n", output.method));
     }
 
+    debug!("generating viper code: MIR builtins");
     header(&mut viper_code, "MIR builtins");
     for output in crate::encoders::MirBuiltinEncoder::all_outputs() {
         viper_code.push_str(&format!("{:?}\n", output.function));
     }
 
+    debug!("generating viper code: generics");
     header(&mut viper_code, "generics");
     for output in crate::encoders::GenericEncoder::all_outputs() {
         viper_code.push_str(&format!("{:?}\n", output.snapshot_param));
@@ -176,6 +199,7 @@ pub fn test_entrypoint<'tcx>(
         viper_code.push_str(&format!("{:?}\n", output.domain_type));
     }
 
+    debug!("generating viper code: types");
     header(&mut viper_code, "types");
     for output in crate::encoders::TypeEncoder::all_outputs() {
         for field in output.fields {
@@ -193,6 +217,7 @@ pub fn test_entrypoint<'tcx>(
         viper_code.push_str(&format!("{:?}\n", output.method_reassign));
     }
 
+    debug!("generating viper code: utility types");
     header(&mut viper_code, "utility types");
     for output in crate::encoders::ViperTupleEncoder::all_outputs() {
         if let Some(domain) = output.domain {
@@ -200,6 +225,7 @@ pub fn test_entrypoint<'tcx>(
         }
     }
 
+    debug!("Writing output file");
     std::fs::write("local-testing/simple.vpr", viper_code).unwrap();
 
     vir::with_vcx(|vcx| vcx.alloc(vir::ProgramData {

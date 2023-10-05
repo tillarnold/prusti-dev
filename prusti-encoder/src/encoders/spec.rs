@@ -88,6 +88,7 @@ impl TaskEncoder for SpecEncoder {
         deps.emit_output_ref::<Self>(task_key.clone(), ());
         vir::with_vcx(|vcx| with_def_spec(|def_spec| {
             let specs = def_spec.get_proc_spec(&task_key.0);
+            log::debug!("specs: {specs:?}");
             if let Some(specs) = specs {
                 Ok((SpecEncoderOutput {
                     pres: vcx.alloc_slice(specs.base_spec.pres.expect_inherent()),

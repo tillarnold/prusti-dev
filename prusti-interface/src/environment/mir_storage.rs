@@ -6,6 +6,7 @@
 //! that is used to show that the lifetime that the client provided is indeed
 //! `'tcx`.
 
+use log::debug;
 use prusti_rustc_interface::{
     borrowck::consumers::BodyWithBorrowckFacts,
     data_structures::fx::FxHashMap,
@@ -79,7 +80,7 @@ pub unsafe fn retrieve_promoted_mir_body<'tcx>(
 ) -> mir::Body<'tcx> {
     let body_without_facts: mir::Body<'static> = SHARED_STATE_WITHOUT_FACTS.with(|state| {
         let mut map = state.borrow_mut();
-        map.remove(&def_id).unwrap()
+        map.get(&def_id).expect(&format!("{def_id:?} should have been in state map")).clone()
     });
     // SAFETY: See the module level comment.
     unsafe { std::mem::transmute(body_without_facts) }

@@ -139,6 +139,8 @@ fn init_loggers() -> Option<FlushGuard> {
 }
 
 fn main() {
+    println!("args {:?}", env::args().collect::<Vec<String>>().join(" "));
+
     let stopwatch = Stopwatch::start("prusti", "main");
 
     // We assume that all command line arguments -P<arg>=<val>

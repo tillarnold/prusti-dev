@@ -143,6 +143,7 @@ impl<'tcx> EnvBody<'tcx> {
     /// Get local MIR body of spec or pure functions. Retrieves the body from
     /// the compiler (relatively cheap).
     pub fn load_local_mir(tcx: TyCtxt<'tcx>, def_id: LocalDefId) -> MirBody<'tcx> {
+        log::debug!("load_local_mir def_id={def_id:?}");
         // SAFETY: This is safe because we are feeding in the same `tcx`
         // that was used to store the data.
         let body = unsafe { mir_storage::retrieve_promoted_mir_body(tcx, def_id) };
