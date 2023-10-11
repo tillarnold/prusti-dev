@@ -69,7 +69,6 @@ impl TaskEncoder for MirFunctionEncoder {
             Option<Self::OutputFullDependency<'vir>>,
         ),
     > {
-        use mir::visit::Visitor;
         vir::with_vcx(|vcx| {
             let def_id = task_key;
 
