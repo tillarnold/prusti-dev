@@ -1,3 +1,4 @@
+use prusti_interface::specs::is_spec_fn;
 use prusti_rustc_interface::{
     data_structures::graph::dominators::Dominators,
     middle::{mir, ty},
@@ -102,6 +103,18 @@ impl TaskEncoder for MirPureEncoder {
             let body = vcx.body.borrow_mut().get_impure_fn_body_identity(local_def_id);
 
             let expr_inner = Encoder::new(vcx, task_key.0, &body, deps).encode_body();
+
+
+            let expr_inner = if is_spec_fn(vcx.tcx, def_id) {
+                // TODO: use type encoder
+                vcx.mk_func_app(
+                    "s_Bool_val",
+                    &[expr_inner],
+                )
+            }
+            else {
+                expr_inner
+            };
 
             // We wrap the expression with an additional lazy that will perform
             // some sanity checks. These requirements cannot be expressed using
@@ -311,11 +324,8 @@ impl<'vir, 'enc> Encoder<'vir, 'enc>
 
         let res = init.merge(update);
         let ret_version = res.versions.get(&mir::RETURN_PLACE).copied().unwrap_or(0);
-        // TODO: use type encoder
-        self.reify_binds(res, self.vcx.mk_func_app(
-            "s_Bool_val",
-            &[self.mk_local_ex(mir::RETURN_PLACE, ret_version)],
-        ))
+      
+        self.reify_binds(res, self.mk_local_ex(mir::RETURN_PLACE, ret_version))
     }
 
     fn find_join_point(
