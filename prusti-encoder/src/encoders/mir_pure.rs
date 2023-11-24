@@ -4,6 +4,7 @@ use prusti_rustc_interface::{
     span::def_id::DefId,
     type_ir::sty::TyKind, ast,
 };
+use rustc_middle::mir::Constant;
 use task_encoder::{
     TaskEncoder,
     TaskEncoderDependencies,
@@ -702,6 +703,7 @@ impl<'tcx, 'vir: 'enc, 'enc> Encoder<'tcx, 'vir, 'enc>
         enum PrustiBuiltin {
             Forall,
             SnapshotEquality,
+            Rel,
         }
 
         // TODO: this attribute extraction should be done elsewhere?
@@ -723,6 +725,7 @@ impl<'tcx, 'vir: 'enc, 'enc> Encoder<'tcx, 'vir, 'enc>
                     builtin = Some(match lit.symbol.as_str() {
                         "forall" => PrustiBuiltin::Forall,
                         "snapshot_equality" => PrustiBuiltin::SnapshotEquality,
+                        "rel" => PrustiBuiltin::Rel,
                         other => panic!("illegal prusti::builtin ({other})"),
                     });
                 }
@@ -831,6 +834,36 @@ impl<'tcx, 'vir: 'enc, 'enc> Encoder<'tcx, 'vir, 'enc>
                     &[], // TODO
                     bool.snap_to_prim.apply(self.vcx, [body]),
                 )])
+            }
+            PrustiBuiltin::Rel => {
+                assert_eq!(args.len(), 2, "Rel needs exactly 2 arguments");
+
+                tracing::warn!("Rel arg 1 is {:?}", &args[1]);
+
+                let x = match &args[1] {
+                    mir::Operand::Constant(c) => {
+                        match c.literal {
+                            mir::ConstantKind::Val(mir::interpret::ConstValue::Scalar(mir::interpret::Scalar::Int(x)), _) => x.try_to_u32().unwrap(),
+                            _ => todo!(),
+                        }
+                    }
+                    _ => todo!(),
+                };
+
+
+                let x = match &args[1] {
+                    mir::Operand::Constant(box Constant{literal: mir::ConstantKind::Val(mir::interpret::ConstValue::Scalar(mir::interpret::Scalar::Int(x)), _), ..}) => {
+                        x.try_to_u32().unwrap()
+                    }
+                    _ => todo!(),
+                };
+
+                let arg = self.encode_operand(&curr_ver, &args[0]);
+
+                self.vcx.mk_rel(
+                    arg,
+                    x,
+                )
             }
         }
     }

@@ -339,6 +339,12 @@ pub fn old<T>(arg: T) -> T {
     arg
 }
 
+#[prusti::builtin="rel"]
+pub fn rel<T>(arg: T, exec: u32) -> T {
+    arg
+}
+
+
 /// Universal quantifier.
 ///
 /// This is a Prusti-internal representation of the `forall` syntax.

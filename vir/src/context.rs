@@ -79,6 +79,14 @@ impl<'tcx> VirCtxt<'tcx> {
         })))
     }
 
+    pub fn mk_rel<'vir, Curr, Next>(
+        &'vir self,
+        src_args: ExprGen<'vir, Curr, Next>,
+        exec: u32,
+    ) -> ExprGen<'vir, Curr, Next> {
+       self.mk_func_app("rel", &[src_args, self.alloc(ExprGenData::Const(self.alloc(ConstData::Int(exec as u128))))])
+    }
+
     pub fn mk_lazy_expr<'vir, Curr, Next>(
         &'vir self,
         name: &'vir str,
