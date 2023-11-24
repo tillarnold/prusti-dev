@@ -837,21 +837,7 @@ impl<'tcx, 'vir: 'enc, 'enc> Encoder<'tcx, 'vir, 'enc>
             }
             PrustiBuiltin::Rel => {
                 assert_eq!(args.len(), 2, "Rel needs exactly 2 arguments");
-
-                tracing::warn!("Rel arg 1 is {:?}", &args[1]);
-
-                let x = match &args[1] {
-                    mir::Operand::Constant(c) => {
-                        match c.literal {
-                            mir::ConstantKind::Val(mir::interpret::ConstValue::Scalar(mir::interpret::Scalar::Int(x)), _) => x.try_to_u32().unwrap(),
-                            _ => todo!(),
-                        }
-                    }
-                    _ => todo!(),
-                };
-
-
-                let x = match &args[1] {
+                let execution_nr = match &args[1] {
                     mir::Operand::Constant(box Constant{literal: mir::ConstantKind::Val(mir::interpret::ConstValue::Scalar(mir::interpret::Scalar::Int(x)), _), ..}) => {
                         x.try_to_u32().unwrap()
                     }
@@ -862,7 +848,7 @@ impl<'tcx, 'vir: 'enc, 'enc> Encoder<'tcx, 'vir, 'enc>
 
                 self.vcx.mk_rel(
                     arg,
-                    x,
+                    execution_nr,
                 )
             }
         }
