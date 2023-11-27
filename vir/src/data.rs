@@ -51,7 +51,7 @@ impl From<mir::BinOp> for BinOpKind {
         match value {
             mir::BinOp::Add => BinOpKind::Add,
             mir::BinOp::AddUnchecked => todo!(),
-            mir::BinOp::Sub => todo!(),
+            mir::BinOp::Sub => BinOpKind::Sub,
             mir::BinOp::SubUnchecked => todo!(),
             mir::BinOp::Mul => todo!(),
             mir::BinOp::MulUnchecked => todo!(),

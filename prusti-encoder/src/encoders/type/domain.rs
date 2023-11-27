@@ -195,7 +195,7 @@ impl TaskEncoder for DomainEnc {
                 let specifics = enc.mk_enum_specifics(None);
                 Ok((enc.finalize(), specifics))
             }
-            _ => todo!(),
+            other => todo!("TyKind {other:?}"),
         })
     }
 }
