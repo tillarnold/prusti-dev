@@ -348,6 +348,7 @@ impl<'tcx, 'vir: 'enc, 'enc> Encoder<'tcx, 'vir, 'enc>
         match &term.kind {
             &mir::TerminatorKind::Goto { target } 
             | &mir::TerminatorKind::FalseEdge { real_target: target, ..}
+            | &mir::TerminatorKind::Drop { target, .. }
             => {
                 match (dominators.immediate_dominator(target), branch_point) {
                     // As soon as we are about to step to a bb where the
