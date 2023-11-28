@@ -58,7 +58,7 @@ impl From<mir::BinOp> for BinOpKind {
             mir::BinOp::Div => todo!(),
             mir::BinOp::Rem => todo!(),
             mir::BinOp::BitXor => todo!(),
-            mir::BinOp::BitAnd => todo!(),
+            mir::BinOp::BitAnd => BinOpKind::And,
             mir::BinOp::BitOr => todo!(),
             mir::BinOp::Shl => todo!(),
             mir::BinOp::ShlUnchecked => todo!(),
