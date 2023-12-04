@@ -90,6 +90,7 @@ impl TaskEncoder for MirPureEnc {
         )
     }
 
+    #[tracing::instrument(skip(deps))]
     fn do_encode_full<'tcx: 'vir, 'vir>(
         task_key: &Self::TaskKey<'tcx>,
         deps: &mut TaskEncoderDependencies<'vir>,
@@ -104,7 +105,7 @@ impl TaskEncoder for MirPureEnc {
 
         let (_, kind, def_id, substs, caller_def_id) = *task_key;
 
-        tracing::debug!("encoding {def_id:?}");
+        tracing::debug!("encoding pure expression {def_id:?}");
         let expr = vir::with_vcx(move |vcx| {
             //let body = vcx.tcx.mir_promoted(local_def_id).0.borrow();
             let body = match kind {
@@ -320,6 +321,7 @@ impl<'tcx, 'vir: 'enc, 'enc> Enc<'tcx, 'vir, 'enc>
         self.reify_binds(res, self.mk_local_ex(mir::RETURN_PLACE, ret_version))
     }
 
+    #[tracing::instrument(skip(self))]
     fn encode_cfg(
         &mut self,
         curr_ver: &HashMap<mir::Local, usize>,
@@ -469,6 +471,7 @@ impl<'tcx, 'vir: 'enc, 'enc> Enc<'tcx, 'vir, 'enc>
         }
     }
 
+    #[tracing::instrument(skip(self))]
     fn encode_stmt(
         &mut self,
         curr_ver: &HashMap<mir::Local, usize>,
@@ -495,6 +498,7 @@ impl<'tcx, 'vir: 'enc, 'enc> Enc<'tcx, 'vir, 'enc>
         update
     }
 
+    #[tracing::instrument(skip(self))]
     fn encode_rvalue(
         &mut self,
         curr_ver: &HashMap<mir::Local, usize>,
@@ -613,6 +617,7 @@ impl<'tcx, 'vir: 'enc, 'enc> Enc<'tcx, 'vir, 'enc>
         }
     }
 
+    #[tracing::instrument(skip(self))]
     fn encode_operand(
         &mut self,
         curr_ver: &HashMap<mir::Local, usize>,

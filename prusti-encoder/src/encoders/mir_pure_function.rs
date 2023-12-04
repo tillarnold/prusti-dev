@@ -52,6 +52,7 @@ impl TaskEncoder for MirFunctionEnc {
         (task.0, task.1)
     }
 
+    #[tracing::instrument(skip(deps))]
     fn do_encode_full<'tcx: 'vir, 'vir>(
         task_key: &Self::TaskKey<'tcx>,
         deps: &mut TaskEncoderDependencies<'vir>,
@@ -70,12 +71,14 @@ impl TaskEncoder for MirFunctionEnc {
             def_spec.trusted.extract_inherit().unwrap_or_default()
         ).unwrap_or_default();
 
+
         vir::with_vcx(|vcx| {
+
+            tracing::debug!("encoding arguments for pure function {def_id:?}");
             let local_defs = deps.require_local::<MirLocalDefEnc>(
                 (def_id, substs, None),
             ).unwrap();
 
-            tracing::debug!("encoding {def_id:?}");
 
             let extra: String = substs.iter().map(|s| format!("_{s}")).collect();
             //let (krate, index) = (caller_def_id.krate, caller_def_id.index.index());
@@ -88,6 +91,8 @@ impl TaskEncoder for MirFunctionEnc {
             let function_ref = FunctionIdent::new(function_name, args);
             deps.emit_output_ref::<Self>(*task_key, MirFunctionEncOutputRef { function_ref, return_type: local_defs.locals[mir::RETURN_PLACE].ty });
 
+            tracing::debug!("encoding spec for pure function {def_id:?}");
+
             let spec = deps.require_local::<MirSpecEnc>(
                 (def_id, substs, None, true)
             ).unwrap();
@@ -98,9 +103,10 @@ impl TaskEncoder for MirFunctionEnc {
             })).collect();
 
             let expr = if trusted {
+                tracing::debug!("skipping body for pure function {def_id:?} because trusted");
                 None
             } else {
-                // Encode the body of the function
+                tracing::debug!("Encoding body for pure function {def_id:?}");
                 let expr = deps
                     .require_local::<MirPureEnc>(MirPureEncTask {
                         encoding_depth: 0,
@@ -116,7 +122,7 @@ impl TaskEncoder for MirFunctionEnc {
                 Some(expr.reify(vcx, (def_id, spec.pre_args)))
             };
 
-            tracing::debug!("finished {def_id:?}");
+            tracing::debug!("finished pure function {def_id:?}");
 
             Ok((
                 MirFunctionEncOutput {

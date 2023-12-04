@@ -40,6 +40,7 @@ impl TaskEncoder for GenericEnc {
         *task
     }
 
+    #[tracing::instrument(skip(deps))]
     #[allow(non_snake_case)]
     fn do_encode_full<'tcx: 'vir, 'vir>(
         task_key: &Self::TaskKey<'tcx>,
