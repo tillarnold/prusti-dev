@@ -303,22 +303,35 @@ impl<'tcx, 'vir: 'enc, 'enc> Enc<'tcx, 'vir, 'enc>
         update: Update<'vir>,
     ) -> ExprRet<'vir> {
 
-        if let &[UpdateBind::Unreachable] = &update.binds[..] {
-            assert!(update.versions.is_empty());
-            return self.vcx.mk_todo_expr("ASSERT FALSE");
+        let(update, is_unreahcbale) = if let &[UpdateBind::Unreachable] = &update.binds[..] {
+            (Update::new(), true)
         }
+        else {
+            (update, false)
+        };
 
-        let tuple_args = mod_locals.iter().map(|local| self.mk_local_ex(
-            *local,
-            update.versions.get(local).copied().unwrap_or_else(|| {
-                // TODO: remove (debug)
-                if !curr_ver.contains_key(&local) {
-                    tracing::error!("unknown version of local! {}", local.as_usize());
-                    return 0xff
-                }
-                curr_ver[local]
-            }),
-        )).collect::<Vec<_>>();
+        let tuple_args = mod_locals.iter().map(|local| {
+            if is_unreahcbale {
+                assert!(update.versions.is_empty());
+                let ty = self.body.local_decls[local.clone()].ty;
+                let vty = self.deps.require_ref::<PredicateEnc>(ty).unwrap();
+                vty.unreachable_to_snap.apply(self.vcx, [])
+            }
+            else {
+                self.mk_local_ex(
+                    *local,
+                    update.versions.get(local).copied().unwrap_or_else(|| {
+                        // TODO: remove (debug)
+                        if !curr_ver.contains_key(&local) {
+                            tracing::error!("unknown version of local! {}", local.as_usize());
+                            return 0xff
+                        }
+                        curr_ver[local]
+                    }),
+                )
+            }
+        }).collect::<Vec<_>>();
+
         self.reify_binds(
             update,
             tuple_ref.mk_cons(self.vcx, &tuple_args),
