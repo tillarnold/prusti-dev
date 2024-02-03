@@ -15,7 +15,7 @@ use prusti_rustc_interface::{
 };
 
 
-const ENABLE_OPTIMIZATION : bool = true;
+const ENABLE_OPTIMIZATION : bool = false;
 
 // Wrapper Trait for task_encoder::Optimizable to allow toggling of optimization
 // TODO: replace with config

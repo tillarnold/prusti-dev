@@ -154,6 +154,7 @@ struct Update<'vir> {
 enum UpdateBind<'vir> {
     Local(mir::Local, usize, ExprRet<'vir>),
     Phi(usize, ExprRet<'vir>),
+    Unreachable,
 }
 
 impl<'vir> Update<'vir> {
@@ -290,6 +291,7 @@ impl<'tcx, 'vir: 'enc, 'enc> Enc<'tcx, 'vir, 'enc>
                     self.vcx.mk_let_expr(self.mk_local(*local, *ver), val, expr),
                 UpdateBind::Phi(idx, val) =>
                     self.vcx.mk_let_expr(self.mk_phi(*idx), val, expr),
+                UpdateBind::Unreachable => unreachable!("Should not reify unreachable bind"),
             })
     }
 
@@ -300,6 +302,12 @@ impl<'tcx, 'vir: 'enc, 'enc> Enc<'tcx, 'vir, 'enc>
         curr_ver: &HashMap<mir::Local, usize>,
         update: Update<'vir>,
     ) -> ExprRet<'vir> {
+
+        if let &[UpdateBind::Unreachable] = &update.binds[..] {
+            assert!(update.versions.is_empty());
+            return self.vcx.mk_todo_expr("ASSERT FALSE");
+        }
+
         let tuple_args = mod_locals.iter().map(|local| self.mk_local_ex(
             *local,
             update.versions.get(local).copied().unwrap_or_else(|| {
@@ -489,6 +497,16 @@ impl<'tcx, 'vir: 'enc, 'enc> Enc<'tcx, 'vir, 'enc>
                 stmt_update.merge(term_update).merge(end_update)
             }
 
+            mir::TerminatorKind::Unreachable =>{
+                // let ex = vir::with_vcx(|vcx| vcx.mk_todo_expr("ASSERT FALSE"));
+                // let mut stmt_update = stmt_update;
+                // stmt_update.binds.push(UpdateBind::Local(mir::Local::from_u32(0), usize::MAX, ex));
+                let mut stmt_update = stmt_update;
+                assert!(stmt_update.binds.is_empty());
+                assert!(stmt_update.versions.is_empty());
+                stmt_update.binds.push(UpdateBind::Unreachable);
+                stmt_update
+            }
             k => todo!("terminator kind {k:?}"),
         }
     }
